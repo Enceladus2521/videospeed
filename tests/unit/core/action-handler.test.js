@@ -704,6 +704,35 @@ runner.test('adjustSpeed should handle multiple source types comprehensively', a
   assert.equal(video.playbackRate, 2.5); // Should be blocked and restored to last internal change
 });
 
+runner.test('adjustSpeed should ignore very low external speeds (Plex fix)', async () => {
+  const config = window.VSC.videoSpeedConfig;
+  await config.load();
+  config.settings.rememberSpeed = true;
+  config.settings.lastSpeed = 1.25;
+
+  const actionHandler = new window.VSC.ActionHandler(config, null);
+
+  const video = createMockVideo({ playbackRate: 0.05 }); // Very low initial speed
+  video.vsc = { speedIndicator: { textContent: '0.05' } };
+  config.addMediaElement(video);
+
+  // External change with very low speed should be ignored and use preferred speed
+  actionHandler.adjustSpeed(video, 0.05, { source: 'external' });
+  assert.equal(video.playbackRate, 1.25); // Should use lastSpeed instead of clamping to 0.07
+
+  // Test with exactly 0.07 (edge case)
+  actionHandler.adjustSpeed(video, 0.07, { source: 'external' });
+  assert.equal(video.playbackRate, 1.25); // Should still use lastSpeed
+
+  // Test with 0.1 (should be accepted)
+  actionHandler.adjustSpeed(video, 0.1, { source: 'external' });
+  assert.equal(video.playbackRate, 0.1); // Should be accepted as it's >= 0.1
+
+  // Internal changes should still work normally with low speeds
+  actionHandler.adjustSpeed(video, 0.07, { source: 'internal' });
+  assert.equal(video.playbackRate, 0.07); // Should work for internal changes
+});
+
 runner.test('adjustSpeed should work correctly with multiple videos', async () => {
   const config = window.VSC.videoSpeedConfig;
   await config.load();

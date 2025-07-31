@@ -352,6 +352,13 @@ class ActionHandler {
     // Round to 2 decimal places to avoid floating point issues
     targetSpeed = Number(targetSpeed.toFixed(2));
 
+    // Handle very low external changes (likely from video initialization)
+    if (source === 'external' && value < 0.1) {
+      // Ignore very low external speeds and use user preference instead
+      targetSpeed = this._getUserPreferredSpeed(video);
+      window.VSC.logger.debug(`Ignoring low external speed ${value}, using preferred speed ${targetSpeed}`);
+    }
+
     // Handle force mode for external changes
     if (source === 'external' && this.config.settings.forceLastSavedSpeed) {
       // In force mode, reject external changes by restoring user preference
